@@ -2,6 +2,14 @@ from itertools import takewhile, repeat
 import os, sys
 
 
+PROG: str = os.path.basename(sys.argv[0])
+
+
+def error(msg: str):
+    print(f"{PROG}: error: {msg}")
+    exit(1)
+
+
 def match_pattern(pattern: str, file: str) -> bool:
     if pattern == "*":
         return True
@@ -19,8 +27,7 @@ def match_pattern(pattern: str, file: str) -> bool:
     elif "*" not in pattern:
         return file == pattern
     else:
-        print(f"{sys.argv[0]}: error: invalid pattern '{pattern}'.")
-        exit(1)
+        error(f"invalid pattern '{pattern}'.")
 
 
 def rawbigcount(filename) -> int:
@@ -54,11 +61,11 @@ def count_directory(
     return lines, files
 
 
-def usage(prog: str):
-    print(f"Usage:  {prog} --help       Show this documentation.")
-    print(f"        {prog} --version    Show the version of {prog}.")
-    print(f"        {prog} <files>       Count the total lines in the specified files.")
-    print(f"        {prog} <directories>  Count total lines of all files in the")
+def usage():
+    print(f"Usage:  {PROG} --help       Show this documentation.")
+    print(f"        {PROG} --version    Show the version of {PROG}.")
+    print(f"        {PROG} <files>       Count the total lines in the specified files.")
+    print(f"        {PROG} <directories>  Count total lines of all files in the")
     print(f"                              specified directories.")
     print(f"                   -r | --recursive     Go into directories recursively.")
     print(f"")
@@ -75,9 +82,8 @@ def usage(prog: str):
 
 def main():
     if len(sys.argv) == 1:
-        print(f"{sys.argv[0]}: error: no arguments given.")
-        usage(sys.argv[0])
-        exit(1)
+        usage()
+        error("no arguments given.")
 
     files: list[str] = []
     recursive: bool = False
@@ -94,37 +100,30 @@ def main():
                 recursive = True
             elif arg == "--fmt":
                 if fmt is not None:
-                    print(f"{sys.argv[0]}: error: multiple formats given.")
-                    exit(1)
+                    error("multiple formats given.")
                 fmt = sys.argv[idx]
                 idx += 1
             elif arg == "--include-hidden":
                 if include_hidden:
-                    print(
-                        f"{sys.argv[0]}: warning: --include-hidden passed multiple times."
-                    )
+                    print(f"{PROG}: warning: --include-hidden passed multiple times.")
                 include_hidden = True
             elif arg in ["-p", "--pattern"]:
                 if pattern is not None:
-                    print(f"{sys.argv[0]}: error: multiple patterns given.")
-                    exit(1)
+                    error("multiple patterns given.")
                 pattern = sys.argv[idx]
                 idx += 1
             else:
-                print(f"{sys.argv[0]}: error: unknown flag {arg}.")
-                exit(1)
+                error(f"unknown flag {arg}.")
         elif os.path.exists(arg):
             files.append(arg)
         else:
-            print(f"{sys.argv[0]}: error: {arg} is not a file or a flag.")
-            return 1
+            error(f"{arg} is not a file or a flag.")
 
     if fmt is None:
         fmt = "%L countend in %F files"
 
     if len(files) == 0:
-        print(f"{sys.argv[0]}: error: no files or directories given.")
-        exit(1)
+        error("no files or directories given.")
 
     pattern = "*" if pattern is None else pattern
 
