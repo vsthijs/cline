@@ -1,5 +1,6 @@
 from itertools import takewhile, repeat
 import os, sys
+from cline import __VERSION__
 
 
 PROG: str = os.path.basename(sys.argv[0])
@@ -80,6 +81,10 @@ def usage():
     print(f"                            pattern.")
 
 
+def version():
+    print(f"{PROG} version {__VERSION__}, on Python version {sys.version}")
+
+
 def main():
     if len(sys.argv) == 1:
         usage()
@@ -112,6 +117,12 @@ def main():
                     error("multiple patterns given.")
                 pattern = sys.argv[idx]
                 idx += 1
+            elif arg in ["-h", "--help"]:
+                usage()
+                exit(0)
+            elif arg in ["-v", "--version"]:
+                version()
+                exit(0)
             else:
                 error(f"unknown flag {arg}.")
         elif os.path.exists(arg):
