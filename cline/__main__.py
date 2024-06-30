@@ -38,19 +38,19 @@ def match_pattern_single(pattern: str, file: str) -> bool:
         error(f"invalid pattern '{pattern}'.")
 
 
-def rawbigcount(filename) -> int:
+def rawbigcount(filename, seq: bytes) -> int:
     """https://stackoverflow.com/a/27517681 - counts the amount of newlines"""
     f = open(filename, "rb")
     bufgen = takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in repeat(None)))
-    return sum(buf.count(b"\n") for buf in bufgen if buf)
+    return sum(buf.count(seq) for buf in bufgen if buf)
 
 
-def count_file(file: str) -> tuple[int, int]:
-    return rawbigcount(file) + 1, 1
+def count_file(file: str, sep: bytes) -> tuple[int, int]:
+    return rawbigcount(file, sep) + 1, 1
 
 
 def count_directory(
-    path: str, recursive: bool, pattern: str, include_hidden: bool
+    path: str, recursive: bool, pattern: str, include_hidden: bool, sep: bytes
 ) -> tuple[int, int]:
     lines = 0
     files = 0
@@ -60,11 +60,11 @@ def count_directory(
             pass  # skip
         elif os.path.isdir(p):
             if recursive:
-                result = count_directory(p, True, pattern, include_hidden)
+                result = count_directory(p, True, pattern, include_hidden, sep)
                 lines += result[0]
                 files += result[1]
         elif match_pattern(pattern, child):
-            lines += count_file(p)[0]
+            lines += count_file(p, sep)[0]
             files += 1
     return lines, files
 
@@ -86,6 +86,8 @@ def usage():
     print(f"                            begin with a '.'")
     print(f"        -p | --pattern PAT  Only count files which match the given")
     print(f"                            pattern.")
+    print(f"        -s | --seperator S  Use S as line endings. For example count the")
+    print(f"                            semicolons instead of the newlines.")
 
 
 def version():
@@ -102,43 +104,62 @@ def main():
     fmt: str | None = None
     pattern: str | None = None
     include_hidden: bool = False
+    seperator: str | None = None
 
-    idx = 1
-    while idx < len(sys.argv):
-        arg = sys.argv[idx]
-        idx += 1
-        if arg.startswith("-"):
-            if arg in ["-r", "--recursive"]:
-                recursive = True
-            elif arg == "--fmt":
-                if fmt is not None:
-                    error("multiple formats given.")
-                fmt = sys.argv[idx]
-                idx += 1
-            elif arg == "--include-hidden":
-                if include_hidden:
-                    print(f"{PROG}: warning: --include-hidden passed multiple times.")
-                include_hidden = True
-            elif arg in ["-p", "--pattern"]:
-                if pattern is not None:
-                    error("multiple patterns given.")
-                pattern = sys.argv[idx]
-                idx += 1
-            elif arg in ["-h", "--help"]:
-                usage()
-                exit(0)
-            elif arg in ["-v", "--version"]:
-                version()
-                exit(0)
+    try:
+        idx = 1
+        while idx < len(sys.argv):
+            arg = sys.argv[idx]
+            idx += 1
+            if arg.startswith("-"):
+                if arg in ["-r", "--recursive"]:
+                    recursive = True
+                elif arg == "--fmt":
+                    if fmt is not None:
+                        error("multiple formats given.")
+                    fmt = sys.argv[idx]
+                    idx += 1
+                elif arg == "--include-hidden":
+                    if include_hidden:
+                        print(
+                            f"{PROG}: warning: --include-hidden passed multiple times."
+                        )
+                    include_hidden = True
+                elif arg in ["-p", "--pattern"]:
+                    if pattern is not None:
+                        error("multiple patterns given.")
+                    pattern = sys.argv[idx]
+                    idx += 1
+                elif arg in ["-s", "--seperator"]:
+                    if seperator is None:
+                        seperator = sys.argv[idx]
+                        idx += 1
+                    else:
+                        error("multiple seperators given.")
+                elif arg in ["-h", "--help"]:
+                    usage()
+                    exit(0)
+                elif arg in ["-v", "--version"]:
+                    version()
+                    exit(0)
+                else:
+                    error(f"unknown flag {arg}.")
+            elif os.path.exists(arg):
+                files.append(arg)
             else:
-                error(f"unknown flag {arg}.")
-        elif os.path.exists(arg):
-            files.append(arg)
-        else:
-            error(f"{arg} is not a file or a flag.")
+                error(f"{arg} is not a file or a flag.")
+    except IndexError:
+        error(f"expected parameter to {sys.argv[-1]}.")
 
     if fmt is None:
         fmt = "%L countend in %F files"
+
+    if seperator is None:
+        seperator = "\n"
+    else:
+        seperator = (
+            seperator.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r")
+        )
 
     if len(files) == 0:
         error("no files or directories given.")
@@ -147,13 +168,14 @@ def main():
 
     counted_lines = 0
     counted_files = 0
+    sep = seperator.encode()
     for p in files:
         if os.path.isdir(p):
-            result = count_directory(p, recursive, pattern, include_hidden)
+            result = count_directory(p, recursive, pattern, include_hidden, sep)
             counted_lines += result[0]
             counted_files += result[1]
         else:
-            counted_lines += count_file(p)[0]
+            counted_lines += count_file(p, sep)[0]
 
     print(
         fmt.replace("%L", str(counted_lines))
