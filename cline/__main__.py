@@ -12,6 +12,13 @@ def error(msg: str):
 
 
 def match_pattern(pattern: str, file: str) -> bool:
+    for p in pattern.split("|"):
+        if match_pattern_single(p.strip(), file):
+            return True
+    return False
+
+
+def match_pattern_single(pattern: str, file: str) -> bool:
     if pattern == "*":
         return True
     elif pattern.count("*") == 2 and pattern.startswith("*") and pattern.endswith("*"):
