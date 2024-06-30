@@ -7,7 +7,7 @@ PROG: str = os.path.basename(sys.argv[0])
 
 
 def error(msg: str):
-    print(f"{PROG}: error: {msg}")
+    print(f"{PROG}: error: {msg}", file=sys.stderr)
     exit(1)
 
 
